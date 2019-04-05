@@ -15,6 +15,20 @@ def vars(s, low=None, high=None):
     """
     return tuple(LpVariable(v.strip(), low, high) for v in s.split(','))
 
+def lp(mode, objective, constraints):
+    """see lp1 below for an example"""
+
+    if mode.lower() == 'max':
+        mode = LpMaximize
+    elif mode.lower() == 'min':
+        mode = LpMinimize
+    prob = LpProblem("", mode)
+    prob += objective
+    for c in constraints:
+        prob += c
+    prob.solve()
+    return prob, prob.objective.value(), dict((v.name, v.value()) for v in prob.variables())
+
 
 def ilp_sat(passedVariables):
 
@@ -43,28 +57,18 @@ def ilp_sat(passedVariables):
             tempList.append(LpVariable("lp_" + j, 0, 1, cat = LpBinary))
         totalList.append(tempList)
         tempList = []
-        print("tempTuple this is", totalList)
-
-    for i in allCharactersList:
-        result = LpVariable(i, 0, 1, cat=LpBinary)
-        # print("This is i", i)
-        dictList[i] = result
-
-    # for i in dictList:
-    #     print("This is what we printing", dictList[i])
+        print("totalList this is", totalList)
 
 
-    # for i in passedVariables:
-    #     for j in range(len(i)):
-    #         result = LpVariable(tempList[j], 0, 1, cat = LpBinary)
-    #         dictList[tempList[j]].append(result)
-    #         counter += 1
-    #         # constraints.append(result)
+    def createNotConstraints(v):
+
+        result = LpVariable(name = v + str(len(constraints)), lowBound = 0, upBound = 1, cat = LpBinary)
+        constraints.append(result == 1 - v) # you get this error because V isn't a LP function.
 
 
     def createOrVariable(v1, v2):
 
-        result = LpVariable(name = "or" + str(len(constraints)), min = 0, max = 1, cat = LpBinary)
+        result = LpVariable(name = "or" + str(len(constraints)), lowBound = 0, upBound = 1, cat = LpBinary)
         constraints.append(result >= v1)
         constraints.append(result >= v2)
         constraints.append(result <= v1 + v2)
@@ -73,18 +77,32 @@ def ilp_sat(passedVariables):
 
     def createAndVariable(v1, v2):
 
-        result = LpVariable(name = "and" + str(len(constraints)), min = 0, max = 1, cat = LpBinary)
+        result = LpVariable(name = "and" + str(len(constraints)), lowBound = 0, upBound = 1, cat = LpBinary)
         constraints.append(result <= v1)
         constraints.append(result <= v2)
         constraints.append(result >= v1 + v2 + 1)
 
         return result
 
-    for i in passedVariables:
+    for i in allCharactersList:
+        result = LpVariable(i, 0, 1, cat=LpBinary)
+        # print("This is i", i)
+        dictList[i] = result
+
+    for i in dictList:
+        createNotConstraints(i)
+        print("This is what we printing", dictList[i])
+
+
+    for i in totalList:
         orList.append(reduce(createOrVariable, i))
 
     print("This is orClauses", orList)
 
+    reduce(createAndVariable, orList)
+
+    print("These are the constraints:")
+    print(constraints)
 
     # lits = "a,-b,c".split(',')
     # litvars = list(lit2var[lit] for lit in lits)
