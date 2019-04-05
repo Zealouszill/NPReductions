@@ -8,6 +8,7 @@ Created on Fri Mar 29 11:13:51 2019
 from collections import defaultdict
 from functools import reduce
 from pulp import LpProblem, LpMinimize, LpMaximize, LpVariable, LpInteger, LpContinuous, LpBinary
+import re
 
 def vars(s, low=None, high=None):
     """example creates three variables bounded from 0 to 10:
@@ -26,6 +27,8 @@ def lp(mode, objective, constraints):
     prob += objective
     for c in constraints:
         prob += c
+    # LpSolverDefault.msg = 1
+    print("Prob variables", prob.variables())
     prob.solve()
     return prob, prob.objective.value(), dict((v.name, v.value()) for v in prob.variables())
 
@@ -36,6 +39,7 @@ def ilp_sat(passedVariables):
 
     constraints = []
     allCharactersList = []
+    allCharactersSplit = []
     lpVariableList = []
     tempList = []
     totalList = []
@@ -47,9 +51,20 @@ def ilp_sat(passedVariables):
     andList = []
 
     for i in range(len(passedVariables)):
-        allCharactersList += passedVariables[i].split(',')
+        allCharactersSplit += passedVariables[i].split(',')
 
-    print("This is the tempList", allCharactersList)
+    print("This is the allCharactersSplit", allCharactersSplit)
+    
+    for i in allCharactersSplit:
+        print("This is i", i)
+        if (len(i) > 1):
+            i = re.sub('[-]', '', i)
+            tempVar = LpVariable(i, 0, 1, LpContinuous, None)
+            allCharactersList.append(tempVar)
+        else:
+            allCharactersList.append(i)
+            
+    print("Printing allCharactersList", allCharactersList)
 
     for i in passedVariables:
         tempSplit = i.split(',')
@@ -62,13 +77,13 @@ def ilp_sat(passedVariables):
 
     def createNotConstraints(v):
 
-        result = LpVariable(name = v + str(len(constraints)), lowBound = 0, upBound = 1, cat = LpBinary)
-        constraints.append(result == 1 - v) # you get this error because V isn't a LP function.
+        result = LpVariable(name = v + str(len(constraints)), lowBound = 0, upBound = 1, cat = LpContinuous)
+        # constraints.append(result == 1 - v) # you get this error because V isn't a LP function.
 
 
     def createOrVariable(v1, v2):
 
-        result = LpVariable(name = "or" + str(len(constraints)), lowBound = 0, upBound = 1, cat = LpBinary)
+        result = LpVariable(name = "or" + str(len(constraints)), lowBound = 0, upBound = 1, cat = LpContinuous)
         constraints.append(result >= v1)
         constraints.append(result >= v2)
         constraints.append(result <= v1 + v2)
@@ -77,7 +92,7 @@ def ilp_sat(passedVariables):
 
     def createAndVariable(v1, v2):
 
-        result = LpVariable(name = "and" + str(len(constraints)), lowBound = 0, upBound = 1, cat = LpBinary)
+        result = LpVariable(name = "and" + str(len(constraints)), lowBound = 0, upBound = 1, cat = LpContinuous)
         constraints.append(result <= v1)
         constraints.append(result <= v2)
         constraints.append(result >= v1 + v2 + 1)
@@ -112,7 +127,10 @@ def ilp_sat(passedVariables):
     # c = reduce(litvars, createOrVariable)
 
 
+    for i in constraints:
+        print(i)
 
+    # print("List of constraints", constraints)
 
     return lp('max', 1, constraints)
 
