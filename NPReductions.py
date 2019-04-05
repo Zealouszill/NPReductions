@@ -7,30 +7,59 @@ Created on Fri Mar 29 11:13:51 2019
 
 from collections import defaultdict
 from functools import reduce
-from pulp import LpProblem, LpMinimize, LpMaximize, LpVariable, \
-    LpInteger, LpContinuous, LpBinary
+from pulp import LpProblem, LpMinimize, LpMaximize, LpVariable, LpInteger, LpContinuous, LpBinary
+
+def vars(s, low=None, high=None):
+    """example creates three variables bounded from 0 to 10:
+    a, b, c = vars('a,b,c', 0, 10)
+    """
+    return tuple(LpVariable(v.strip(), low, high) for v in s.split(','))
+
 
 def ilp_sat(passedVariables):
 
-    # (['a,-b,c'], [b,d])
+    passedVariables = (['a,-b,c', 'b,c,d'])
 
     constraints = []
+    allCharactersList = []
+    lpVariableList = []
     tempList = []
+    totalList = []
+    tempSplit = ()
     dictList = defaultdict(list)
 
-    for i in range(len(passedVariables)):
-        tempList += passedVariables[i].split(',')
 
-    # print("This is the tempList", tempList)
+    orList = []
+    andList = []
+
+    for i in range(len(passedVariables)):
+        allCharactersList += passedVariables[i].split(',')
+
+    print("This is the tempList", allCharactersList)
 
     for i in passedVariables:
-        for j in range(len(i)):
-            dictList[tempList[i]].append(LpVariable(tempList[i] + str(len(constraints)), 0, 1, cat = LpBinary))
+        tempSplit = i.split(',')
+        for j in tempSplit:
+            tempList.append(LpVariable("lp_" + j, 0, 1, cat = LpBinary))
+        totalList.append(tempList)
+        tempList = []
+        print("tempTuple this is", totalList)
 
-    print
+    for i in allCharactersList:
+        result = LpVariable(i, 0, 1, cat=LpBinary)
+        # print("This is i", i)
+        dictList[i] = result
 
-    for i in range(len(dictList)):
-        print("This is what we printing", dictList[i])
+    # for i in dictList:
+    #     print("This is what we printing", dictList[i])
+
+
+    # for i in passedVariables:
+    #     for j in range(len(i)):
+    #         result = LpVariable(tempList[j], 0, 1, cat = LpBinary)
+    #         dictList[tempList[j]].append(result)
+    #         counter += 1
+    #         # constraints.append(result)
 
 
     def createOrVariable(v1, v2):
@@ -41,11 +70,28 @@ def ilp_sat(passedVariables):
         constraints.append(result <= v1 + v2)
 
         return result
-    # result = LpBinary()
 
-    lits = "a,-b,c".split(',')
-    litvars = list(lit2var[lit] for lit in lits)
-    c = reduce(litvars, createOrVariable)
+    def createAndVariable(v1, v2):
+
+        result = LpVariable(name = "and" + str(len(constraints)), min = 0, max = 1, cat = LpBinary)
+        constraints.append(result <= v1)
+        constraints.append(result <= v2)
+        constraints.append(result >= v1 + v2 + 1)
+
+        return result
+
+    for i in passedVariables:
+        orList.append(reduce(createOrVariable, i))
+
+    print("This is orClauses", orList)
+
+
+    # lits = "a,-b,c".split(',')
+    # litvars = list(lit2var[lit] for lit in lits)
+    #
+    # print("This is litvars", litvars)
+    #
+    # c = reduce(litvars, createOrVariable)
 
 
 
@@ -74,12 +120,15 @@ def test_BinaryCircuitTest():
     Then you create an LpVariable for each of the 6.
 
     func tools in reduce
+
     plus(v1, v2):
 
         return v1 + v2
 
 
-    assert reduce([5,2,1], plus) == 8
+    assert reduce(plus, [5,2,1]) == 8
+
+
     Pass in list of LpVariables ^^
 
     Create a CreateOr Function that take in two variables
@@ -100,3 +149,9 @@ def test_BinaryCircuitTest():
     assert result[2] == 1
 
 
+def test_reduce():
+
+    def plus(v1, v2):
+        return v1 + v2
+
+    assert reduce(plus, [5, 2, 1]) == 8
